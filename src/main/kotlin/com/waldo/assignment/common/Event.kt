@@ -3,6 +3,7 @@ package com.waldo.assignment.common
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import java.io.InputStream
+import java.util.HashMap
 
 /**
  * Note: these could be in their own files
@@ -13,6 +14,7 @@ import java.io.InputStream
  */
 
 interface Listener {
+  var name: String
   fun onEvent(event: Event)
 }
 
@@ -34,7 +36,7 @@ interface Producer {
 open class SimpleProducer() : Producer {
 
   override fun publish(event: Event, listener: Listener?) {
-    listener?.onEvent(event)
+    listener!!.onEvent(event)
   }
 }
 
@@ -44,11 +46,26 @@ class Event(
   var photo: InputStream? = null,
   var photoData: MutableMap<String, Any>? = null,
   var retries: Int = 0,
-  var previousStep: Listener? = null) {
+  var steps: MutableMap<String, Listener> = HashMap(),
+  var retryPrevStep: Boolean = false) {
+
+  fun addNextStep(step: Listener): Event {
+    return addStep(step.name, step)
+  }
+
+  fun addPrevStep(step: Listener): Event {
+    return addStep(step.name, step)
+  }
+
+  private fun addStep(key: String, step: Listener): Event {
+    if (steps[key] == null) {
+      steps[key] = step
+    }
+    return this
+  }
 
   override fun toString(): String {
-    return "Event[name=$name,photoKey=${photoSource.key}"
+    return "Event[name=$name,photoKey=${photoSource.key}]"
   }
 }
-
 

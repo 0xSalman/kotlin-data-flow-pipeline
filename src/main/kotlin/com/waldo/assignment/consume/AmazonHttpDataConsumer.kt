@@ -1,6 +1,7 @@
 package com.waldo.assignment.consume
 
 import com.waldo.assignment.common.Event
+import com.waldo.assignment.common.ExceptionListener
 import com.waldo.assignment.common.PhotoSource
 import com.waldo.assignment.common.Producer
 import org.slf4j.LoggerFactory
@@ -33,6 +34,8 @@ open class AmazonHttpDataConsumer : DataConsumer {
   @Autowired
   lateinit var photoConsumerListener: HttpPhotoConsumerListener
   @Autowired
+  lateinit var exceptionListener: ExceptionListener
+  @Autowired
   lateinit var producer: Producer
 
   override fun consume() {
@@ -42,7 +45,6 @@ open class AmazonHttpDataConsumer : DataConsumer {
       conn.requestMethod = "GET"
 
       if (conn.responseCode != 200) {
-        // FIXME try it again at later time
         RuntimeException("Failed to get bucket list. HTTP error code: ${conn.responseCode}")
       }
 
@@ -55,10 +57,16 @@ open class AmazonHttpDataConsumer : DataConsumer {
       result.contents?.forEach { photoInfo ->
         if (photoInfo.key != null) {
           val photoSource = PhotoSource(sourceUrl, photoInfo.key)
-          producer.publish(Event("httpPhotoConsumer", photoSource), photoConsumerListener)
+          val event = Event(photoConsumerListener.name, photoSource)
+            .addPrevStep(exceptionListener)
+            .addNextStep(photoConsumerListener)
+          if (event.photoSource.key == "0188017b-0d90-4cab-9009-bbb74501c3d5.ede96cc7-5500-4b3a-8828-26aabcaa2f4c.jpg") {
+            producer.publish(event, photoConsumerListener)
+          }
         }
       }
     } catch(e: Exception) {
+      // FIXME should try it again at later time
       logger.error("Failed to consume s3 bucket list", e)
     }
   }

@@ -8,6 +8,7 @@ import com.waldo.assignment.index.MongoStorageListener
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
+import java.io.IOException
 import java.util.HashMap
 
 /**
@@ -30,9 +31,13 @@ open class ExifDataProcessor : PhotoProcessor {
   @Autowired
   lateinit var storageListener: MongoStorageListener
   @Autowired
+  lateinit var dataProcessorListener: ExifDataProcessorListener
+  @Autowired
   lateinit var producer: Producer
 
   override fun process(event: Event) {
+
+    logger.debug("{}", event)
 
     try {
       val metadata = ImageMetadataReader.readMetadata(event.photo!!)
@@ -46,9 +51,19 @@ open class ExifDataProcessor : PhotoProcessor {
           photoData.put(it.tagName.replace("\\s+".toRegex(), ""), it.description)
         }
 
-      producer.publish(Event("mongoStorage", event.photoSource, event.photo, photoData), storageListener)
+      event.photoData = photoData
+      event.addNextStep(storageListener)
+
+      producer.publish(event, storageListener)
+    } catch (e: IOException) {
+      logger.error("Failed to parse photo data", e)
+      // send it back to previous data flow event
+      event.retries++
+      producer.publish(event, event.steps[dataProcessorListener.prevStepName])
     } catch(e: Exception) {
       logger.error("Failed to extract EXIF data from photo", e)
+      event.retries++
+      producer.publish(event, dataProcessorListener)
     }
   }
 }

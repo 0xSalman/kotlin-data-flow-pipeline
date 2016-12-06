@@ -28,23 +28,32 @@ open class HttpPhotoConsumer : PhotoConsumer {
   @Autowired
   lateinit var dataProcessorListener: ExifDataProcessorListener
   @Autowired
+  lateinit var photoConsumerListener: HttpPhotoConsumerListener
+  @Autowired
   lateinit var producer: Producer
 
   override fun consume(event: Event) {
 
+    logger.debug("{}", event)
+
     try {
+
       val conn = URL("${event.photoSource.path}/${event.photoSource.key}").openConnection() as HttpURLConnection
       conn.requestMethod = "GET"
 
       if (conn.responseCode != 200) {
-        // FIXME try it again at later time
         RuntimeException("Failed to fetch photo. HTTP error code: ${conn.responseCode}")
       }
 
-      val photo = conn.inputStream
-      producer.publish(Event("exifDataProcessor", event.photoSource, photo), dataProcessorListener)
+      event.photo = conn.inputStream
+      event.addNextStep(dataProcessorListener)
+
+      producer.publish(event, dataProcessorListener)
     } catch(e: Exception) {
       logger.error("Failed to consume photo", e)
+      // retry it again
+      event.retries++
+      producer.publish(event, photoConsumerListener)
     }
   }
 }
