@@ -60,9 +60,7 @@ open class AmazonHttpDataConsumer : DataConsumer {
           val event = Event(photoConsumerListener.name, photoSource)
             .addPrevStep(exceptionListener)
             .addNextStep(photoConsumerListener)
-          if (event.photoSource.key == "0188017b-0d90-4cab-9009-bbb74501c3d5.ede96cc7-5500-4b3a-8828-26aabcaa2f4c.jpg") {
-            producer.publish(event, photoConsumerListener)
-          }
+          producer.publish(event, photoConsumerListener)
         }
       }
     } catch(e: Exception) {

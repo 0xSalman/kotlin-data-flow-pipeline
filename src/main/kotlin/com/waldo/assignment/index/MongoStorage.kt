@@ -34,12 +34,14 @@ open class MongoStorage : Storage {
     logger.debug("{}", event)
 
     try {
-
-      if (event.photoSource.key == "0188017b-0d90-4cab-9009-bbb74501c3d5.ede96cc7-5500-4b3a-8828-26aabcaa2f4c.jpg") {
-        throw RuntimeException("Retry test!")
+      val newPhoto = PhotoMetaData(event.photoSource.key, event.photoData!!)
+      val existingPhoto = mongo.findById(event.photoSource.key, PhotoMetaData::class.java)
+      // if it already exists then assume we are updating it
+      if (existingPhoto == null) {
+        mongo.insert(newPhoto)
+      } else {
+        mongo.save(newPhoto)
       }
-
-      mongo.insert(PhotoMetaData(event.photoSource.key, event.photoData!!))
     } catch(e: Exception) {
       logger.error("Failed to save photo metadata", e)
       event.retries++

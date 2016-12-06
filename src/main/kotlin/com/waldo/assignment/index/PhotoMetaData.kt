@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Document
  * @author Muhammad Salman
  */
 
-@Document
+@Document(collection = "photos")
 data class PhotoMetaData(
   @Id var key: String,
   var metaData: Map<String, Any>)

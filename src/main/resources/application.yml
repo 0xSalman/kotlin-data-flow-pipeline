@@ -2,3 +2,4 @@ spring:
   data:
     mongodb:
       port: 27000
+      database: test
